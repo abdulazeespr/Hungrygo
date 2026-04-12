@@ -9,6 +9,9 @@ import logger from './config/logger.js';
 import { requestLogger } from './middlewares/requestLogger.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import userRoutes from './modules/user/user.routes.js';
+import messRoutes from './modules/mess/mess.routes.js';
+import menuRoutes from './modules/menu/menu.routes.js';
 
 const app = express();
 
@@ -27,6 +30,9 @@ app.use(requestLogger);
 
 // ─── API Routes ──────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/mess-providers', messRoutes);
+app.use('/api/v1/mess-providers', menuRoutes); // mergeParams handles /:id/menus
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (_req, res) => {

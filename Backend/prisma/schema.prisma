@@ -42,7 +42,133 @@ model User {
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt      @map("updated_at")
 
+  // Phase 2 relations
+  addresses     Address[]
+  messProviders MessProvider[]
+
   @@index([phone])
   @@index([role])
   @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 2 ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum DietaryType {
+  veg
+  non_veg
+  both
+}
+
+enum MessStatus {
+  pending
+  active
+  suspended
+  closed
+}
+
+enum MealSlot {
+  breakfast
+  lunch
+  dinner
+  full_day
+}
+
+enum DurationType {
+  daily
+  weekly
+  monthly
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 2 MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Address {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  label       String   @default("Home") @db.VarChar(50)
+  fullAddress String   @map("full_address")
+  city        String   @db.VarChar(100)
+  state       String   @db.VarChar(100)
+  pincode     String   @db.VarChar(10)
+  lat         Decimal  @db.Decimal(10, 7)
+  lng         Decimal  @db.Decimal(10, 7)
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model MessProvider {
+  id           String      @id @default(uuid()) @db.Uuid
+  ownerId      String      @map("owner_id") @db.Uuid
+  name         String      @db.VarChar(150)
+  description  String?
+  fssaiNumber  String?     @map("fssai_number") @db.VarChar(20)
+  phone        String?     @db.VarChar(15)
+  address      String
+  city         String      @db.VarChar(100)
+  pincode      String?     @db.VarChar(10)
+  lat          Decimal     @db.Decimal(10, 7)
+  lng          Decimal     @db.Decimal(10, 7)
+  // PostGIS `location` GEOGRAPHY column is added via raw migration edit — not in Prisma schema
+  dietaryType  DietaryType @default(veg)     @map("dietary_type")
+  status       MessStatus  @default(pending)
+  avgRating    Decimal     @default(0.00)    @map("avg_rating") @db.Decimal(3, 2)
+  totalReviews Int         @default(0)       @map("total_reviews")
+  coverImage   String?     @map("cover_image")
+  opensAt      String      @default("07:00") @map("opens_at") @db.VarChar(5)
+  closesAt     String      @default("22:00") @map("closes_at") @db.VarChar(5)
+  createdAt    DateTime    @default(now())   @map("created_at")
+  updatedAt    DateTime    @updatedAt        @map("updated_at")
+
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  pricingPlans PricingPlan[]
+  menus        Menu[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([city])
+  @@map("mess_providers")
+}
+
+model PricingPlan {
+  id           String       @id @default(uuid()) @db.Uuid
+  messId       String       @map("mess_id") @db.Uuid
+  mealSlot     MealSlot     @map("meal_slot")
+  durationType DurationType @map("duration_type")
+  price        Decimal      @db.Decimal(10, 2)
+  isActive     Boolean      @default(true) @map("is_active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt      @map("updated_at")
+
+  mess MessProvider @relation(fields: [messId], references: [id], onDelete: Cascade)
+
+  @@unique([messId, mealSlot, durationType])
+  @@index([messId])
+  @@map("pricing_plans")
+}
+
+model Menu {
+  id        String   @id @default(uuid()) @db.Uuid
+  messId    String   @map("mess_id") @db.Uuid
+  date      DateTime @db.Date
+  mealSlot  MealSlot @map("meal_slot")
+  items     Json     @default("[]")
+  // items structure: Array<{ name: string; description: string; isSpecial: boolean }>
+  photoUrl  String?  @map("photo_url")
+  isHoliday Boolean  @default(false) @map("is_holiday")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  mess MessProvider @relation(fields: [messId], references: [id], onDelete: Cascade)
+
+  @@unique([messId, date, mealSlot])
+  @@index([messId, date])
+  @@map("menus")
 }

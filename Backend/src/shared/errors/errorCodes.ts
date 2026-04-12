@@ -9,6 +9,10 @@ export const ErrorCodes = {
   CONFLICT:              'CONFLICT',
   NOT_FOUND:             'NOT_FOUND',
   INTERNAL_ERROR:        'INTERNAL_ERROR',
+  MESS_NOT_FOUND:      'MESS_NOT_FOUND',
+  MESS_NOT_ACTIVE:     'MESS_NOT_ACTIVE',
+  MESS_OWNER_MISMATCH: 'MESS_OWNER_MISMATCH',
+  PLAN_NOT_FOUND:      'PLAN_NOT_FOUND',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

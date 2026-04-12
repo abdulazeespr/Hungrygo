@@ -63,6 +63,79 @@ const options: swaggerJsdoc.Options = {
             createdAt:   { type: 'string', format: 'date-time' },
           },
         },
+        // ── Phase 2 Schemas ───────────────────────────────────────────────
+        Address: {
+          type: 'object',
+          properties: {
+            id:          { type: 'string', format: 'uuid' },
+            label:       { type: 'string', example: 'Home' },
+            fullAddress: { type: 'string', example: 'Flat 302, Sunrise Apts, Kothrud' },
+            city:        { type: 'string', example: 'Pune' },
+            state:       { type: 'string', example: 'Maharashtra' },
+            pincode:     { type: 'string', example: '411038' },
+            lat:         { type: 'number', example: 18.5074 },
+            lng:         { type: 'number', example: 73.8077 },
+            isDefault:   { type: 'boolean' },
+          },
+        },
+        MessProvider: {
+          type: 'object',
+          properties: {
+            id:           { type: 'string', format: 'uuid' },
+            name:         { type: 'string', example: 'Sunita Tiffin Center' },
+            dietaryType:  { type: 'string', enum: ['veg', 'non_veg', 'both'] },
+            avgRating:    { type: 'number', example: 4.3 },
+            totalReviews: { type: 'integer', example: 87 },
+            coverImage:   { type: 'string', nullable: true },
+            city:         { type: 'string', example: 'Pune' },
+            status:       { type: 'string', enum: ['pending', 'active', 'suspended', 'closed'] },
+            opensAt:      { type: 'string', example: '07:00' },
+            closesAt:     { type: 'string', example: '21:00' },
+          },
+        },
+        MessWithDistance: {
+          allOf: [
+            { '$ref': '#/components/schemas/MessProvider' },
+            { type: 'object', properties: {
+                distanceKm:   { type: 'number', example: 1.2 },
+                cheapestPlan: {
+                  type: 'object', nullable: true,
+                  properties: {
+                    mealSlot:     { type: 'string', example: 'lunch' },
+                    durationType: { type: 'string', example: 'monthly' },
+                    price:        { type: 'number', example: 2200 },
+                  },
+                },
+            }},
+          ],
+        },
+        PricingPlan: {
+          type: 'object',
+          properties: {
+            id:           { type: 'string', format: 'uuid' },
+            mealSlot:     { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'full_day'] },
+            durationType: { type: 'string', enum: ['daily', 'weekly', 'monthly'] },
+            price:        { type: 'number', example: 2200 },
+            isActive:     { type: 'boolean' },
+          },
+        },
+        MenuItem: {
+          type: 'object',
+          properties: {
+            name:        { type: 'string', example: 'Dal Tadka' },
+            description: { type: 'string', example: 'Yellow lentils with ghee' },
+            isSpecial:   { type: 'boolean', example: false },
+          },
+        },
+        Menu: {
+          type: 'object',
+          properties: {
+            mealSlot:  { type: 'string', enum: ['breakfast', 'lunch', 'dinner'] },
+            isHoliday: { type: 'boolean' },
+            items:     { type: 'array', items: { '$ref': '#/components/schemas/MenuItem' } },
+            photoUrl:  { type: 'string', nullable: true },
+          },
+        },
       },
     },
   },
