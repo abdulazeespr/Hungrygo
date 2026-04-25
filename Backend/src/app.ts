@@ -12,6 +12,9 @@ import authRoutes from './modules/auth/auth.routes.js';
 import userRoutes from './modules/user/user.routes.js';
 import messRoutes from './modules/mess/mess.routes.js';
 import menuRoutes from './modules/menu/menu.routes.js';
+import subscriptionRoutes from './modules/subscription/subscription.routes.js';
+import mealSlotRoutes from './modules/meal-slot/meal-slot.routes.js';
+import walletRoutes from './modules/wallet/wallet.routes.js';
 
 const app = express();
 
@@ -33,6 +36,9 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/mess-providers', messRoutes);
 app.use('/api/v1/mess-providers', menuRoutes); // mergeParams handles /:id/menus
+app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/v1/meal-slots', mealSlotRoutes);
+app.use('/api/v1/wallet', walletRoutes);
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (_req, res) => {

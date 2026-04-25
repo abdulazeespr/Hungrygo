@@ -46,6 +46,11 @@ model User {
   addresses     Address[]
   messProviders MessProvider[]
 
+  // Phase 3 relations
+  subscriptions      Subscription[]
+  creditWallet       CreditWallet?
+  walletTransactions WalletTransaction[]
+
   @@index([phone])
   @@index([role])
   @@map("users")
@@ -130,6 +135,9 @@ model MessProvider {
   owner        User          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   pricingPlans PricingPlan[]
   menus        Menu[]
+  
+  // Phase 3 relations
+  subscriptions Subscription[]
 
   @@index([ownerId])
   @@index([status])
@@ -148,6 +156,9 @@ model PricingPlan {
   updatedAt    DateTime     @updatedAt      @map("updated_at")
 
   mess MessProvider @relation(fields: [messId], references: [id], onDelete: Cascade)
+  
+  // Phase 3 relations
+  subscriptions Subscription[]
 
   @@unique([messId, mealSlot, durationType])
   @@index([messId])
@@ -171,4 +182,108 @@ model Menu {
   @@unique([messId, date, mealSlot])
   @@index([messId, date])
   @@map("menus")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 3 ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum SubStatus {
+  pending_payment
+  active
+  paused
+  cancelled
+  expired
+}
+
+enum MealSlotStatus {
+  scheduled
+  delivered
+  cancelled
+  skipped
+}
+
+enum WalletTxType {
+  credit
+  debit
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 3 MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Subscription {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  messId       String       @map("mess_id") @db.Uuid
+  planId       String       @map("plan_id") @db.Uuid
+  mealSlot     MealSlot     @map("meal_slot")
+  durationType DurationType @map("duration_type")
+  startDate    DateTime     @map("start_date") @db.Date
+  endDate      DateTime     @map("end_date") @db.Date
+  status       SubStatus    @default(active)
+  autoRenew    Boolean      @default(true)  @map("auto_renew")
+  totalAmount  Decimal      @map("total_amount") @db.Decimal(10, 2)
+  pauseStart   DateTime?    @map("pause_start") @db.Date
+  pauseEnd     DateTime?    @map("pause_end") @db.Date
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt      @map("updated_at")
+
+  user      User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  mess      MessProvider @relation(fields: [messId], references: [id], onDelete: Restrict)
+  plan      PricingPlan  @relation(fields: [planId], references: [id])
+  mealSlots SubscriptionMealSlot[]
+
+  @@index([userId])
+  @@index([messId])
+  @@index([status])
+  // Partial unique index (one active sub per user+mess+slot) added via raw migration edit
+  @@map("subscriptions")
+}
+
+model SubscriptionMealSlot {
+  id             String         @id @default(uuid()) @db.Uuid
+  subscriptionId String         @map("subscription_id") @db.Uuid
+  date           DateTime       @db.Date
+  mealSlot       MealSlot       @map("meal_slot")
+  status         MealSlotStatus @default(scheduled)
+  cancelledAt    DateTime?      @map("cancelled_at")
+  cancelReason   String?        @map("cancel_reason")
+  creditIssued   Decimal        @default(0) @map("credit_issued") @db.Decimal(10, 2)
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([date])
+  @@index([status])
+  @@map("meal_slots")
+}
+
+model CreditWallet {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  balance   Decimal  @default(0) @db.Decimal(10, 2)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@map("credit_wallet")
+}
+
+model WalletTransaction {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  amount      Decimal      @db.Decimal(10, 2)
+  type        WalletTxType
+  reason      String?
+  referenceId String?      @map("reference_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  user   User         @relation(fields: [userId], references: [id], map: "wallet_transactions_user_id_user_fkey")
+  wallet CreditWallet @relation(fields: [userId], references: [userId], map: "wallet_transactions_user_id_wallet_fkey")
+
+  @@index([userId])
+  @@map("wallet_transactions")
 }
