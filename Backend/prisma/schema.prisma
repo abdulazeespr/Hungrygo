@@ -55,6 +55,11 @@ model User {
   payments Payment[]
   reviews  Review[]
 
+  // Phase 5 relations
+  notificationTokens NotificationToken[]
+  notifications      Notification[]
+  promoUsages        PromoUsage[]
+
   @@index([phone])
   @@index([role])
   @@map("users")
@@ -246,6 +251,12 @@ model Subscription {
   payment   Payment? @relation(name: "ActivePayment", fields: [paymentId], references: [id])
   payments  Payment[] @relation(name: "SubscriptionPayments")
 
+  // Phase 5 relations
+  promoId        String?    @map("promo_id") @db.Uuid
+  discountAmount Decimal    @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  promo          PromoCode? @relation(fields: [promoId], references: [id])
+  promoUsages    PromoUsage[]
+
   @@index([userId])
   @@index([messId])
   @@index([status])
@@ -368,4 +379,105 @@ model MessPhoto {
 
   @@index([messId])
   @@map("mess_photos")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5 ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum NotificationType {
+  meal_reminder
+  menu_updated
+  sub_renewal_reminder
+  sub_activated
+  sub_cancelled
+  payment_captured
+  payment_failed
+  mess_approved
+  mess_suspended
+}
+
+enum NotificationPlatform {
+  web
+  android
+  ios
+}
+
+enum PromoDiscountType {
+  flat
+  percent
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5 MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model NotificationToken {
+  id        String               @id @default(uuid()) @db.Uuid
+  userId    String               @map("user_id") @db.Uuid
+  token     String               @unique
+  platform  NotificationPlatform
+  isActive  Boolean              @default(true) @map("is_active")
+  createdAt DateTime             @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notification_tokens")
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String           @db.VarChar(150)
+  body      String
+  payload   Json             @default("{}")
+  isRead    Boolean          @default(false) @map("is_read")
+  sentAt    DateTime?        @map("sent_at")
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model PromoCode {
+  id             String            @id @default(uuid()) @db.Uuid
+  code           String            @unique @db.VarChar(20)
+  description    String?
+  discountType   PromoDiscountType @map("discount_type")
+  discountValue  Decimal           @map("discount_value") @db.Decimal(10, 2)
+  maxUses        Int?              @map("max_uses")
+  usedCount      Int               @default(0) @map("used_count")
+  minOrderAmount Decimal           @default(0) @map("min_order_amount") @db.Decimal(10, 2)
+  validFrom      DateTime          @default(now()) @map("valid_from")
+  validUntil     DateTime?         @map("valid_until")
+  isActive       Boolean           @default(true) @map("is_active")
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  usages PromoUsage[]
+  subscriptions Subscription[]
+
+  @@map("promo_codes")
+}
+
+model PromoUsage {
+  id             String   @id @default(uuid()) @db.Uuid
+  promoId        String   @map("promo_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  subscriptionId String   @map("subscription_id") @db.Uuid
+  discountAmount Decimal  @map("discount_amount") @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  promo        PromoCode    @relation(fields: [promoId],        references: [id])
+  user         User         @relation(fields: [userId],         references: [id])
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@unique([userId, promoId])
+  @@index([promoId])
+  @@map("promo_usages")
 }

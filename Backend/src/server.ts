@@ -3,6 +3,11 @@ import { config } from './config/index.js';
 import logger from './config/logger.js';
 import prisma from './config/database.js';
 import redis from './config/redis.js';
+import { startWorkers } from './jobs/worker.js';
+import { startCronJobs } from './jobs/cron.js';
+
+startWorkers();
+startCronJobs();
 
 const server = app.listen(config.PORT, () => {
   logger.info(`[Hungrygo] Server running on port ${config.PORT} (${config.NODE_ENV})`);

@@ -18,6 +18,9 @@ import walletRoutes from './modules/wallet/wallet.routes.js';
 import paymentRoutes from './modules/payment/payment.routes.js';
 import reviewRoutes from './modules/review/review.routes.js';
 import ownerRoutes from './modules/owner/owner.routes.js';
+import notificationRoutes from './modules/notification/notification.routes.js';
+import promoRoutes from './modules/promo/promo.routes.js';
+import adminRoutes from './modules/admin/admin.routes.js';
 import { paymentController } from './modules/payment/payment.controller.js';
 import { asyncHandler } from './shared/utils/asyncHandler.js';
 
@@ -55,6 +58,9 @@ app.use('/api/v1/meal-slots', mealSlotRoutes);
 app.use('/api/v1/wallet', walletRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/owner', ownerRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/promos', promoRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (_req, res) => {
