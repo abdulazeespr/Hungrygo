@@ -1,5 +1,7 @@
 import { subscriptionRepository } from './subscription.repository.js';
 import { messRepository } from '../mess/mess.repository.js';
+import { walletRepository } from '../wallet/wallet.repository.js';
+import { paymentService } from '../payment/payment.service.js';
 import { HttpError } from '../../shared/errors/HttpError.js';
 import { ErrorCodes } from '../../shared/errors/errorCodes.js';
 import redis from '../../config/redis.js';
@@ -148,27 +150,29 @@ export const subscriptionService = {
     // 3. Calculate dates and generate slot rows
     const startDate = new Date(dto.startDate);
     const endDate = calculateEndDate(startDate, dto.durationType);
-    const slotRows = generateSlotDates(startDate, endDate, dto.mealSlot);
     const totalAmount = Number(plan.price);
 
-    // 4. Create subscription + slots atomically
-    //    The partial unique index will cause P2002 if duplicate active sub exists
-    let result;
+    // Fetch user's wallet
+    const wallet = await walletRepository.getOrCreate(userId);
+    const balance = Number(wallet.balance);
+    const walletAmountUsed = Math.min(balance, totalAmount);
+    const amountDue = totalAmount - walletAmountUsed;
+
+    // 4. Create pending subscription + deduct wallet
+    let sub;
     try {
-      result = await subscriptionRepository.createWithSlots(
-        {
-          userId,
-          messId: dto.messId,
-          planId: dto.planId,
-          mealSlot: dto.mealSlot,
-          durationType: dto.durationType,
-          startDate,
-          endDate,
-          totalAmount,
-          autoRenew: dto.autoRenew,
-        },
-        slotRows,
-      );
+      sub = await subscriptionRepository.createPendingSubscription({
+        userId,
+        messId: dto.messId,
+        planId: dto.planId,
+        mealSlot: dto.mealSlot,
+        durationType: dto.durationType,
+        startDate,
+        endDate,
+        totalAmount,
+        autoRenew: dto.autoRenew,
+        walletAmountUsed,
+      });
     } catch (error: any) {
       if (error?.code === 'P2002') {
         throw new HttpError(
@@ -180,22 +184,26 @@ export const subscriptionService = {
       throw error;
     }
 
-    // 5. INCR Redis headcounts for each slot
-    const pipeline = redis.pipeline();
-    for (const slot of slotRows) {
-      const key = headcountKey(dto.messId, slot.date, slot.slot);
-      pipeline.incr(key);
-      pipeline.expire(key, 86400 * 35); // TTL > max subscription window
+    // 5. Create Razorpay order if amountDue > 0
+    let razorpayOrder = null;
+    if (amountDue > 0) {
+      razorpayOrder = await paymentService.createOrder(userId, sub.id, amountDue, walletAmountUsed);
+    } else {
+      // In a full implementation, we'd directly activate here, but throwing for simplicity if free.
+      throw new HttpError(400, 'BAD_REQUEST', 'Free subscriptions are not supported in this demo.');
     }
-    await pipeline.exec();
+
+    // We do NOT increment headcounts here. That happens on payment verification.
 
     return {
-      subscriptionId: result.sub.id,
-      status: result.sub.status,
-      startDate: result.sub.startDate,
-      endDate: result.sub.endDate,
-      totalSlots: result.totalSlots,
+      subscriptionId: sub.id,
+      status: sub.status,
+      startDate: sub.startDate,
+      endDate: sub.endDate,
       totalAmount,
+      walletAmountUsed,
+      amountDue,
+      razorpayOrder,
     };
   },
 

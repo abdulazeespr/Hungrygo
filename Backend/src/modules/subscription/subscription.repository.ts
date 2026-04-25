@@ -63,9 +63,9 @@ export const subscriptionRepository = {
   },
 
   /**
-   * Atomically create subscription + bulk meal slots + ensure wallet exists.
+   * Atomically create subscription and deduct wallet balance.
    */
-  async createWithSlots(
+  async createPendingSubscription(
     subData: {
       userId: string;
       messId: string;
@@ -76,8 +76,8 @@ export const subscriptionRepository = {
       endDate: Date;
       totalAmount: number;
       autoRenew: boolean;
-    },
-    slotRows: MealSlotDateEntry[],
+      walletAmountUsed: number;
+    }
   ) {
     return prisma.$transaction(async (tx) => {
       const sub = await tx.subscription.create({
@@ -91,26 +91,34 @@ export const subscriptionRepository = {
           endDate: subData.endDate,
           totalAmount: subData.totalAmount,
           autoRenew: subData.autoRenew,
-          status: 'active',
+          status: 'pending_payment',
         },
       });
 
-      await tx.subscriptionMealSlot.createMany({
-        data: slotRows.map((s) => ({
-          subscriptionId: sub.id,
-          date: s.date,
-          mealSlot: s.slot,
-        })),
-      });
+      if (subData.walletAmountUsed > 0) {
+        await tx.creditWallet.update({
+          where: { userId: subData.userId },
+          data: { balance: { decrement: subData.walletAmountUsed } },
+        });
 
-      // Ensure wallet exists for the user
-      await tx.creditWallet.upsert({
-        where: { userId: subData.userId },
-        update: {},
-        create: { userId: subData.userId, balance: 0 },
-      });
+        await tx.walletTransaction.create({
+          data: {
+            userId: subData.userId,
+            amount: subData.walletAmountUsed,
+            type: 'debit',
+            reason: `Applied to subscription ${sub.id}`,
+            referenceId: sub.id,
+          },
+        });
+      } else {
+        await tx.creditWallet.upsert({
+          where: { userId: subData.userId },
+          update: {},
+          create: { userId: subData.userId, balance: 0 },
+        });
+      }
 
-      return { sub, totalSlots: slotRows.length };
+      return sub;
     });
   },
 

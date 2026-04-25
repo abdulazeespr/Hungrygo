@@ -174,6 +174,20 @@ const options: swaggerJsdoc.Options = {
             createdAt:   { type: 'string', format: 'date-time' },
           },
         },
+        // ── Phase 4 Schemas ───────────────────────────────────────────────
+        Payment: {
+          type: 'object',
+          properties: {
+            id:                { type: 'string', format: 'uuid' },
+            amount:            { type: 'number', example: 2200 },
+            walletAmountUsed:  { type: 'number', example: 100 },
+            currency:          { type: 'string', example: 'INR' },
+            status:            { type: 'string', enum: ['pending', 'captured', 'failed', 'refunded'] },
+            razorpayOrderId:   { type: 'string' },
+            razorpayPaymentId: { type: 'string', nullable: true },
+            createdAt:         { type: 'string', format: 'date-time' },
+          },
+        },
       },
     },
   },

@@ -51,6 +51,10 @@ model User {
   creditWallet       CreditWallet?
   walletTransactions WalletTransaction[]
 
+  // Phase 4 relations
+  payments Payment[]
+  reviews  Review[]
+
   @@index([phone])
   @@index([role])
   @@map("users")
@@ -139,6 +143,10 @@ model MessProvider {
   // Phase 3 relations
   subscriptions Subscription[]
 
+  // Phase 4 relations
+  reviews Review[]
+  photos  MessPhoto[]
+
   @@index([ownerId])
   @@index([status])
   @@index([city])
@@ -221,7 +229,7 @@ model Subscription {
   durationType DurationType @map("duration_type")
   startDate    DateTime     @map("start_date") @db.Date
   endDate      DateTime     @map("end_date") @db.Date
-  status       SubStatus    @default(active)
+  status       SubStatus    @default(pending_payment)
   autoRenew    Boolean      @default(true)  @map("auto_renew")
   totalAmount  Decimal      @map("total_amount") @db.Decimal(10, 2)
   pauseStart   DateTime?    @map("pause_start") @db.Date
@@ -233,6 +241,10 @@ model Subscription {
   mess      MessProvider @relation(fields: [messId], references: [id], onDelete: Restrict)
   plan      PricingPlan  @relation(fields: [planId], references: [id])
   mealSlots SubscriptionMealSlot[]
+
+  paymentId String?  @map("payment_id") @db.Uuid
+  payment   Payment? @relation(name: "ActivePayment", fields: [paymentId], references: [id])
+  payments  Payment[] @relation(name: "SubscriptionPayments")
 
   @@index([userId])
   @@index([messId])
@@ -286,4 +298,74 @@ model WalletTransaction {
 
   @@index([userId])
   @@map("wallet_transactions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 4 ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PaymentStatus {
+  pending
+  captured
+  failed
+  refunded
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 4 MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  subscriptionId    String?       @map("subscription_id") @db.Uuid
+  amount            Decimal       @db.Decimal(10, 2)
+  walletAmountUsed  Decimal       @default(0) @map("wallet_amount_used") @db.Decimal(10, 2)
+  currency          String        @default("INR") @db.VarChar(5)
+  status            PaymentStatus @default(pending)
+  razorpayOrderId   String?       @unique @map("razorpay_order_id") @db.VarChar(100)
+  razorpayPaymentId String?       @unique @map("razorpay_payment_id") @db.VarChar(100)
+  razorpaySignature String?       @map("razorpay_signature")
+  failureReason     String?       @map("failure_reason")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt      @map("updated_at")
+
+  user         User          @relation(fields: [userId],         references: [id])
+  subscription Subscription? @relation(name: "SubscriptionPayments", fields: [subscriptionId], references: [id])
+  activeForSubs Subscription[] @relation(name: "ActivePayment")
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@map("payments")
+}
+
+model Review {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  messId    String   @map("mess_id") @db.Uuid
+  rating    Int      @db.SmallInt
+  comment   String?
+  isVisible Boolean  @default(true) @map("is_visible")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mess MessProvider @relation(fields: [messId],  references: [id], onDelete: Cascade)
+
+  @@unique([userId, messId])
+  @@index([messId])
+  @@map("reviews")
+}
+
+model MessPhoto {
+  id        String   @id @default(uuid()) @db.Uuid
+  messId    String   @map("mess_id") @db.Uuid
+  url       String
+  isCover   Boolean  @default(false) @map("is_cover")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  mess MessProvider @relation(fields: [messId], references: [id], onDelete: Cascade)
+
+  @@index([messId])
+  @@map("mess_photos")
 }

@@ -12,6 +12,9 @@ const envSchema = z.object({
   OTP_EXPIRES_IN_SECONDS: z.coerce.number().default(300),
   OTP_LENGTH:             z.coerce.number().default(6),
   LOG_LEVEL:              z.string().default('info'),
+  RAZORPAY_KEY_ID:        z.string().default('rzp_test_mock123'),
+  RAZORPAY_KEY_SECRET:    z.string().default('rzp_secret_mock456'),
+  RAZORPAY_WEBHOOK_SECRET:z.string().default('webhook_secret'),
 });
 
 const parsed = envSchema.safeParse(process.env);
